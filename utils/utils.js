@@ -15,7 +15,7 @@ function generateTime() {
 }
 
 function createBookingNumber() {
-  return `#confirmation-${uuidv4()}`;
+  return `confirmation-${uuidv4()}`;
 }
 
 function countTotalPrice(totalPlayers, totalFields) {

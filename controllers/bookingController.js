@@ -25,7 +25,7 @@ async function requestBooking(request, response) {
       requestTime,
       fieldIdToBook: { $in: fieldIdToBook },
     });
-    console.log(findBooking);
+    // console.log(findBooking);
     if (!findBooking) {
       const bookingRequest = await Booking.create({
         requestDate,
@@ -60,4 +60,28 @@ async function requestBooking(request, response) {
   }
 }
 
-module.exports = { requestBooking };
+async function updateBooking(request, response) {
+  try {
+    const { id } = request.params;
+    const requestUpdate = await Booking.findOneAndUpdate(
+      { _id: id },
+      request.body,
+      { new: true, runValidators: true }
+    );
+    console.log(requestUpdate);
+    const totalPrice = countTotalPrice(
+      requestUpdate.totalPlayers,
+      requestUpdate.fieldIdToBook.length
+    );
+    const updateBooking = await Booking.findOneAndUpdate(
+      { _id: id },
+      { requestUpdate, totalPrice },
+      { new: true, runValidators: true }
+    );
+    response.status(201).json({ status: true, updateBooking });
+  } catch (error) {
+    response.status(400).json({ status: 400, message: error });
+  }
+}
+
+module.exports = { requestBooking, updateBooking };

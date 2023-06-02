@@ -1,17 +1,18 @@
-const { request } = require('express');
 const Booking = require('../models/bookingModel');
 const {
   createBookingNumber,
   countTotalPrice,
-  showTimeBooked,
+  showBookedHours,
+  timeFormatting,
 } = require('../utils/utils');
 
 async function requestBooking(request, response) {
   try {
     const { date, time, hours, email, totalPlayers, bowlingAlleyID, shoeSize } =
       request.body;
-    const totalPrice = countTotalPrice(totalPlayers, bowlingAlleyID.length);
-    const timeToPlay = showTimeBooked(time, hours);
+    const totalPrice = countTotalPrice(totalPlayers, bowlingAlleyID?.length);
+    const timeToPlay = showBookedHours(time, hours);
+    const timeFormat = timeFormatting(time);
     const bookingID = createBookingNumber();
 
     const findExistingBooking = await Booking.findOne({
@@ -23,7 +24,7 @@ async function requestBooking(request, response) {
     if (!findExistingBooking) {
       const newBooking = await Booking.create({
         date,
-        time,
+        time: timeFormat,
         hours,
         bookedHours: timeToPlay,
         totalPlayers,
@@ -33,81 +34,26 @@ async function requestBooking(request, response) {
         totalPrice,
         bookingID,
       });
-
-      const result = {
-        date,
-        timeToPlay,
-        email,
-        totalPlayers,
-        bowlingAlleyID,
-        shoeSize,
-        totalPrice,
-        bookingID,
-      };
-      response.status(201).json({ status: true, result });
-    } else {
       response
-        .status(400)
-        .json({ status: false, message: 'WHATA FUCK IS THIS DATE' });
+        .status(201)
+        .json({ status: true, message: 'New booking created' });
+    } else {
+      response.status(404).json({
+        status: true,
+        message: 'Please try another date, time or alley',
+      });
     }
   } catch (error) {
     response.status(400).json({ status: 400, message: error.message });
   }
 }
 
-// async function updateBooking(request, response) {
-//   try {
-//     const { id } = request.params;
-//     const { date, time, bowlingAlleyID } = request.body;
-//     const myBooking = await Booking.findById({ _id: id });
-//     console.log('we found myBooking ', myBooking);
-//     console.log(date, time, bowlingAlleyID);
-//     // const findExistingBooking = await Booking.findOne({
-//     // date,
-//     // time,
-//     // bowlingAlleyID: { $in: bowlingAlleyID },
-//     // });
-//     // console.log(findExistingBooking, 'horungefungera');
-//     const requestUpdate = await Booking.findOne({
-//       _id: { $ne: myBooking.id },
-// $or: [
-//   {
-//     $and: [
-//       { date },
-//       { time },
-//       { bowlingAlleyID: { $in: bowlingAlleyID } },
-//     ],
-//   },
-//   // { $and: [{}] },
-// ],
-//     });
-
-//     console.log(requestUpdate, 'requestUpdate');
-//     if (!requestUpdate) {
-//       const totalPrice = countTotalPrice(
-//         myBooking.totalPlayers,
-//         myBooking.bowlingAlleyID.length
-//       );
-//       const updateBooking = await Booking.findOneAndUpdate(
-//         { _id: id },
-//         myBooking,
-//         requestUpdate,
-//         totalPrice,
-//         { new: true, runValidators: true }
-//       );
-//       response.status(201).json({ status: true, updateBooking });
-//     }
-//   } catch (error) {
-//     response.status(400).json({ status: 400, message: error.message });
-//   }
-// }
-
 async function deleteBooking(request, response) {
   try {
-    const deleteDoc = await Booking.findOneAndDelete({
+    const booking = await Booking.findOneAndDelete({
       bookingID: request.params.id,
     });
-    if (deleteDoc) {
+    if (booking) {
       response.status(204).json({ status: true });
     } else {
       response
@@ -136,23 +82,25 @@ async function updateBooking(request, response) {
       time: update.time,
       bowlingAlleyID: { $in: update.bowlingAlleyID },
     });
-    console.log(findExistingBooking, 'findExistingBooking');
 
     if (!findExistingBooking) {
       const totalPrice = countTotalPrice(
         update.totalPlayers,
         update.bowlingAlleyID.length
       );
-      const bookedHours = showTimeBooked(update.time, update.hours);
+      const bookedHours = showBookedHours(update.time, update.hours);
+      // const timeToPlay = showBookedHours(update.time, update.hours);
+
       update.totalPrice = totalPrice;
       update.bookedHours = bookedHours;
-      const updateDoc = await Booking.findByIdAndUpdate(update.id, update, {
+      // update.timeToPlay = timeToPlay;
+
+      const updateBooking = await Booking.findByIdAndUpdate(update.id, update, {
         new: true,
         runValidators: true,
       });
-      // console.log(updateDoc, 'updateDoc');
-      await updateDoc.save();
-      return response.status(200).json({ status: true, result: updateDoc });
+      await updateBooking.save();
+      return response.status(200).json({ status: true, result: updateBooking });
     } else {
       throw new Error('The requested booking is not valid');
     }
@@ -161,41 +109,63 @@ async function updateBooking(request, response) {
   }
 }
 
+async function myBooking(request, response) {
+  try {
+    const { id } = request.params;
+    const booking = await Booking.findById(id);
+    if (booking) {
+      const result = {
+        date: booking.date.toLocaleDateString('se-sv'),
+        time: booking.time,
+        bookedHours: booking.bookedHours,
+        totalPlayers: booking.totalPlayers,
+        bowlingAlleyID: booking.bowlingAlleyID,
+        totalPrice: booking.totalPrice,
+      };
+      response.status(200).json({ status: true, result });
+    } else {
+      throw new Error('Your booking could not be found');
+    }
+  } catch (error) {
+    response.status(400).json({ status: 400, message: error.message });
+  }
+}
+
 async function searchDate(request, response) {
   try {
-    console.log(request.query);
-  } catch (error) {}
+    const { start, end } = request.query;
+    const startingDate = new Date(start);
+    const endingDate = new Date(end);
+
+    const dateInterval = await Booking.find({
+      date: { $gte: startingDate, $lte: endingDate },
+    }).sort({ date: 'asc' });
+
+    if (dateInterval) {
+      const dates = dateInterval.map((value) => {
+        const result = {
+          date: value.date.toLocaleDateString('se-sv'),
+          from: value.bookedHours,
+          bookedAlleys: value.bowlingAlleyID,
+        };
+        return result;
+      });
+
+      response.status(200).json({
+        status: true,
+        result: dates.length,
+        bookings: dates.length > 0 ? dates : 'No bookings found',
+      });
+    }
+  } catch (error) {
+    response.status(400).json({ status: 400, message: error.message });
+  }
 }
-// async function updateBooking(request, response) {
-//   try {
-//     const id = request.params.id;
-//     const doc = await Booking.findOne({ _id: id });
 
-//     // Manuellt tilldela egenskaperna från request.body till doc
-//     doc.date = request.body.date;
-//     doc.time = request.body.time;
-//     doc.bowlingAlleyID = request.body.bowlingAlleyID;
-//     doc.totalPlayers = request.body.totalPlayers;
-//     doc.shoeSize = request.body.shoeSize;
-
-//     const findExistingBooking = await Booking.findOne({
-//       date: doc.date,
-//       time: doc.time,
-//       bowlingAlleyID: { $in: doc.bowlingAlleyID },
-//       totalPlayers: doc.totalPlayers,
-//       shoeSize: doc.shoeSize,
-//     });
-
-//     if (!findExistingBooking) {
-//       const updateDoc = await doc.save();
-
-//       return response.status(200).json({ status: true, result: updateDoc });
-//     } else {
-//       throw new Error('The requested booking is not valid');
-//     }
-//   } catch (error) {
-//     response.status(400).json({ status: 400, message: error.message });
-//   }
-// }
-
-module.exports = { requestBooking, updateBooking, deleteBooking, searchDate };
+module.exports = {
+  requestBooking,
+  updateBooking,
+  deleteBooking,
+  searchDate,
+  myBooking,
+};

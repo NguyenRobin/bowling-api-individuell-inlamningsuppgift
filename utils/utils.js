@@ -1,19 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
 
-function generateDate() {
-  const date = new Date().toLocaleDateString('se-sv');
-  return date;
-}
-
-function generateTime() {
-  const date = new Date();
-  const hour = date.getHours();
-  const min = date.getMinutes();
-  const seconds = date.getSeconds();
-  const time = `${hour}:${min}:${seconds}`;
-  return time;
-}
-
 function createBookingNumber() {
   return uuidv4();
 }
@@ -25,17 +11,36 @@ function countTotalPrice(totalPlayers, totalFields) {
   return `${total} SEK`;
 }
 
-function showTimeBooked(requestTime, hours = 1) {
+function showBookedHours(requestTime, hours = 1) {
   const start = Math.round(parseInt(requestTime));
-  console.log('utils', start);
   const end = start + hours;
-  console.log(requestTime, 'showFieldTimeBooked');
   let output;
-  if (start < 10) {
-    return (output = `${start}:00 - ${end}:00`);
-  } else {
-    return (output = `${start}:00 - ${end}:00`);
+  if (start < 10 && end < 10) {
+    output = `0${start}:00 - 0${end}:00`;
   }
+  if (start < 10 && end >= 10) {
+    output = `0${start}:00 - ${end}:00`;
+  }
+  if (start > 10 && end > 10) {
+    output = `${start}:00 - ${end}:00`;
+  }
+  return output;
 }
 
-module.exports = { createBookingNumber, countTotalPrice, showTimeBooked };
+function timeFormatting(requestTime) {
+  const time = Math.round(parseInt(requestTime));
+  let output;
+  if (time < 10) {
+    output = `0${time}:00`;
+  } else {
+    output = `${time}:00`;
+  }
+  return output;
+}
+
+module.exports = {
+  createBookingNumber,
+  countTotalPrice,
+  showBookedHours,
+  timeFormatting,
+};

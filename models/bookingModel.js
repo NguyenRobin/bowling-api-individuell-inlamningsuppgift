@@ -8,7 +8,6 @@ const bookingSchema = new mongoose.Schema({
   },
   time: {
     type: String,
-    // maxLength: 5,
     required: [
       true,
       'Please choice what time you want to start playing. HH:MM ',
@@ -40,7 +39,7 @@ const bookingSchema = new mongoose.Schema({
       validator: function (bowlingAlleyID) {
         return bowlingAlleyID.length >= 1 && bowlingAlleyID.length <= 8;
       },
-      message: `minimum 1 field must be requested and maximum 8 fields`,
+      message: `Choice which bowling alley you would like to book. Each unique id from 1-8`,
     },
   },
   shoeSize: {
@@ -60,16 +59,11 @@ const bookingSchema = new mongoose.Schema({
   bookingID: { type: String, required: true },
 });
 
-bookingSchema.pre('save', function (next) {
-  const isFormatValid = this.time.match(
-    /^([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/
-  );
-  if (isFormatValid) {
-    next();
+bookingSchema.pre('validate', function (next) {
+  if (parseInt(this.time) + this.hours > 23) {
+    return next(new Error('bowling is closing at 23.00'));
   } else {
-    next(
-      new Error('Enter a time to start (HH:MM) in whole Hours, example 7:00 ')
-    );
+    next();
   }
 });
 
@@ -90,17 +84,34 @@ bookingSchema.pre('save', function (next) {
 bookingSchema.pre('save', function (next) {
   const openingHours = { open: 7, close: 23 };
   const requestTime = parseInt(this.time);
-  console.log(requestTime, 'requestTime middleware');
-  if (requestTime < openingHours.open || requestTime > openingHours.close) {
+  if (requestTime < openingHours.open || requestTime >= openingHours.close) {
     return next(new Error(`Bowling is closed. Open hours: 07.00 - 23.00`));
   } else {
     next();
   }
 });
 
-// bookingSchema.pre('findOneAndUpdate', function () {
-//   console.log(Booking.date);
-// });
+bookingSchema.pre('save', function (next) {
+  const isFormatValid = this.time.match(
+    /^([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/
+  );
+  if (isFormatValid) {
+    next();
+  } else {
+    next(
+      new Error('Enter a time to start (HH:MM) in whole Hours, example 7:00 ')
+    );
+  }
+});
+bookingSchema.pre('validate', function (next) {
+  if (this.bowlingAlleyID.length !== new Set(this.bowlingAlleyID).size) {
+    return next(
+      new Error(`You're not allowed to enter the same alley id twice`)
+    );
+  } else {
+    next();
+  }
+});
 
 // MODEL
 const Booking = mongoose.model('Booking', bookingSchema);

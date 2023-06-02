@@ -4,6 +4,6 @@ const bookingController = require('../controllers/bookingController');
 
 router.post('/booking', bookingController.requestBooking);
 router.patch('/:id', bookingController.updateBooking);
-router.delete('/:id');
-
+router.delete('/:id', bookingController.deleteBooking);
+router.get('/', bookingController.searchDate);
 module.exports = router;

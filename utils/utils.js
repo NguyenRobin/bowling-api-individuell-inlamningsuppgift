@@ -15,7 +15,7 @@ function generateTime() {
 }
 
 function createBookingNumber() {
-  return `confirmation-${uuidv4()}`;
+  return uuidv4();
 }
 
 function countTotalPrice(totalPlayers, totalFields) {
@@ -25,10 +25,17 @@ function countTotalPrice(totalPlayers, totalFields) {
   return `${total} SEK`;
 }
 
-function showFieldTimeBooked(requestTime) {
-  const output = `${requestTime} - ${(+requestTime + 1).toString()}.00`;
-  console.log(output);
-  return output;
+function showTimeBooked(requestTime, hours = 1) {
+  const start = Math.round(parseInt(requestTime));
+  console.log('utils', start);
+  const end = start + hours;
+  console.log(requestTime, 'showFieldTimeBooked');
+  let output;
+  if (start < 10) {
+    return (output = `${start}:00 - ${end}:00`);
+  } else {
+    return (output = `${start}:00 - ${end}:00`);
+  }
 }
 
-module.exports = { createBookingNumber, countTotalPrice, showFieldTimeBooked };
+module.exports = { createBookingNumber, countTotalPrice, showTimeBooked };
